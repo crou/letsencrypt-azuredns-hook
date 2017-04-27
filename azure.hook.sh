@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 #!/usr/bin/env bash
 
 #
@@ -269,4 +268,3 @@ case ${PHASE} in
 esac
 
 exit 0
->>>>>>> 17745ff91d12d74047e06b304d58b69188896f38
