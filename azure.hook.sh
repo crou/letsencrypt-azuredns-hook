@@ -3,20 +3,10 @@
 #
 # How to deploy a DNS challenge using Azure
 #
-
 # Debug Logging level
 DEBUG=3
-
-# Azure Tenant specific configuration settings
-#   You should create an SPN in Azure first and authorize it to make changes to Azure DNS
-#       REF: https://azure.microsoft.com/en-us/documentation/articles/resource-group-create-service-principal-portal/
-TENANT="<tenant name>.onmicrosoft.com"      # Your tenant name - the onmicrosoft.com value
-SPN_USERNAME="<spn uri id or guid>"         # This is one of the SPN values (the identifier-uri or guid value)
-SPN_PASSWORD="<password>"                   # This is the password associated with the SPN account
-RESOURCE_GROUP="<resource group name>"      # This is the resource group containing your Azure DNS instance
-DNS_ZONE="<dns zone name>"                  # This is the DNS zone you want the SPN to manage (Contributor access)
-TTL="<time in seconds>"                     # This is the TTL for the dnz record-set
-
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "${DIR}/azure.hook.config"
 
 # Supporting functions
 function log {
@@ -29,6 +19,7 @@ function login_azure {
     # You should create an SPN in Azure first and authorize it to make changes to Azure DNS
     #  REF: https://azure.microsoft.com/en-us/documentation/articles/resource-group-create-service-principal-portal/
     az login --username ${SPN_USERNAME} --password ${SPN_PASSWORD} --tenant ${TENANT} --service-principal > /dev/null
+    az account set --subscription ${SUBSCRIPTION}
 }
 function parseSubDomain {
     log "  Parse SubDomain" 4
@@ -39,7 +30,7 @@ function parseSubDomain {
     DOMAIN=`sed -E 's/(.*)\.(.*\..*$)/\2/' <<< "${FQDN}"`
     log "    DOMAIN: '${DOMAIN}'" 4
 
-    SUBDOMAIN=`sed -E 's/(.*)\.(.*\..*$)/\1/' <<< "${FQDN}"`
+    SUBDOMAIN=`sed -E 's/(.*)\.'"${DNS_ZONE}"'/\1/' <<< "${FQDN}"`
     log "    SUBDOMAIN: '${SUBDOMAIN}'" 4
 
     echo "${SUBDOMAIN}"
@@ -54,7 +45,7 @@ function buildDnsKey {
     log "    SUBDOMAIN: ${SUBDOMAIN}" 4
 
     CHALLENGE_KEY="_acme-challenge.${SUBDOMAIN}"
-    log "    KEY: '${CHALLENGE_KEY}'" 4
+    log "    CHALLENGE_KEY: '${CHALLENGE_KEY}'" 4
 
     echo "${CHALLENGE_KEY}"
 }
@@ -81,7 +72,9 @@ case ${PHASE} in
 
         # Commands
         log "" 4
-        respAddRec=$(az network dns record-set txt add-record  --resource-group ${RESOURCE_GROUP} --zone-name ${DNS_ZONE} --record-set-name ${CHALLENGE_KEY} --value ${TOKEN_VALUE})
+	respCreate=$(az network dns record-set txt create --name ${CHALLENGE_KEY}  --resource-group ${RESOURCE_GROUP} --zone-name ${DNS_ZONE} --ttl ${TTL} --output json)
+        log "      Create: '$respCreate'" 4
+        respAddRec=$(az network dns record-set txt add-record  --resource-group ${RESOURCE_GROUP} --zone-name ${DNS_ZONE} --record-set-name ${CHALLENGE_KEY} --value ${TOKEN_VALUE} --output json)
         log "      AddRec: '$respAddRec'" 4
         ;;
 
@@ -97,8 +90,8 @@ case ${PHASE} in
         # Commands
         log "" 4
         log "    Running azure cli commands" 4
-        respDel=$(az network dns record-set txt delete --resource-group ${RESOURCE_GROUP} --zone-name ${DNS_ZONE} --name ${CHALLENGE_KEY})
-        log "      Delete: '$respDel'" 4
+        respDel=$(az network dns record-set txt delete --resource-group ${RESOURCE_GROUP} --zone-name ${DNS_ZONE} --name ${CHALLENGE_KEY} --yes --output json)
+        #log "      Delete: '$respDel'" 4
         ;;
 
     "deploy_cert")
@@ -125,6 +118,12 @@ case ${PHASE} in
 
         # do nothing for now
         ;;
+
+      "exit_hook")
+
+        # do nothing for now
+        ;;
+
 
     *)
         log "Unknown hook '${PHASE}'" 1
