@@ -5,7 +5,7 @@
 #
 
 # Debug Logging level
-DEBUG=3
+DEBUG=4
 
 # Azure Tenant specific configuration settings
 #   You should create an SPN in Azure first and authorize it to make changes to Azure DNS
@@ -97,7 +97,7 @@ case ${PHASE} in
         # Commands
         log "" 4
         log "    Running azure cli commands" 4
-        respDel=$(az network dns record-set txt delete --resource-group ${RESOURCE_GROUP} --zone-name ${DNS_ZONE} --name ${CHALLENGE_KEY})
+        respDel=$(az network dns record-set txt delete --resource-group ${RESOURCE_GROUP} --zone-name ${DNS_ZONE} --name ${CHALLENGE_KEY} --yes)
         log "      Delete: '$respDel'" 4
         ;;
 
