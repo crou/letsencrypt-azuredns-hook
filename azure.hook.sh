@@ -4,7 +4,7 @@
 # How to deploy a DNS challenge using Azure
 #
 # Debug Logging level
-DEBUG=3
+DEBUG=4
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "${DIR}/azure.hook.config"
 
@@ -21,6 +21,7 @@ function login_azure {
     az login --username ${SPN_USERNAME} --password ${SPN_PASSWORD} --tenant ${TENANT} --service-principal > /dev/null
     az account set --subscription ${SUBSCRIPTION}
 }
+
 function parseSubDomain {
     log "  Parse SubDomain" 4
 
@@ -30,11 +31,17 @@ function parseSubDomain {
     DOMAIN=`sed -E 's/(.*)\.(.*\..*$)/\2/' <<< "${FQDN}"`
     log "    DOMAIN: '${DOMAIN}'" 4
 
-    SUBDOMAIN=`sed -E 's/(.*)\.'"${DNS_ZONE}"'/\1/' <<< "${FQDN}"`
+    shopt -s nocasematch
+    if [ "$SUBDOMAIN" == "$DNS_ZONE" ]; then
+        SUBDOMAIN=""
+    else
+        SUBDOMAIN=`sed -E 's/(.*)\.'"${DNS_ZONE}"'/\1/' <<< "${FQDN}"`
+    fi
     log "    SUBDOMAIN: '${SUBDOMAIN}'" 4
 
     echo "${SUBDOMAIN}"
 }
+
 function buildDnsKey {
     log "  Build DNS Key" 4
 
@@ -44,7 +51,11 @@ function buildDnsKey {
     SUBDOMAIN=$(parseSubDomain ${FQDN})
     log "    SUBDOMAIN: ${SUBDOMAIN}" 4
 
-    CHALLENGE_KEY="_acme-challenge.${SUBDOMAIN}"
+    if [ "$SUBDOMAIN" == "" ]; then
+        CHALLENGE_KEY="_acme-challenge"
+    else
+        CHALLENGE_KEY="_acme-challenge.${SUBDOMAIN}"
+    fi
     log "    CHALLENGE_KEY: '${CHALLENGE_KEY}'" 4
 
     echo "${CHALLENGE_KEY}"
@@ -90,7 +101,7 @@ case ${PHASE} in
         # Commands
         log "" 4
         log "    Running azure cli commands" 4
-        respDel=$(az network dns record-set txt delete --resource-group ${RESOURCE_GROUP} --zone-name ${DNS_ZONE} --name ${CHALLENGE_KEY} --yes --output json)
+     #   respDel=$(az network dns record-set txt delete --resource-group ${RESOURCE_GROUP} --zone-name ${DNS_ZONE} --name ${CHALLENGE_KEY} --yes --output json)
         #log "      Delete: '$respDel'" 4
         ;;
 
