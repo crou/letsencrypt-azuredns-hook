@@ -28,7 +28,7 @@ function login_azure {
     # Azure DNS Connection Variables
     # You should create an SPN in Azure first and authorize it to make changes to Azure DNS
     #  REF: https://azure.microsoft.com/en-us/documentation/articles/resource-group-create-service-principal-portal/
-    azure login --username ${SPN_USERNAME} --password ${SPN_PASSWORD} --tenant ${TENANT} --service-principal --quiet > /dev/null
+    az login --username ${SPN_USERNAME} --password ${SPN_PASSWORD} --tenant ${TENANT} --service-principal > /dev/null
 }
 function parseSubDomain {
     log "  Parse SubDomain" 4
